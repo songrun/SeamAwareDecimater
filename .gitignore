@@ -10,3 +10,4 @@ profile.out
 cmake_install.cmake
 CMakeFiles
 CMakeCache.txt
+build/*
