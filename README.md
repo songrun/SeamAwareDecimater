@@ -3,13 +3,13 @@
 Seam-aware decimater simplifies a mesh while preserving its UV parameterization. It allows 
 the same texture to be used across all decimation levels—notably along seams.
 
+### Requirements
+
 This code depends on:
 
-- [libigl](https://github.com/libigl/libigl)
+- [C++ 11]
+- [libigl](https://github.com/libigl/libigl) (`git clone https://github.com/libigl/libigl.git --recursive`)
 - [eigen](http://eigen.tuxfamily.org/) (e.g. `brew install eigen`)
-
-### Download libigl and compile the third-party dependencies
-    git clone https://github.com/libigl/libigl.git --recursive
 
 ### Compile this project
     mkdir build
