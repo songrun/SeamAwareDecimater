@@ -24,5 +24,6 @@ This project uses C++ 11, and it depends on:
 
 ### Examples
 
+The Animal model is decimated to 3% of its original number of vertices. The boundary of its UV parameterization stays.
 	<img src = "results/extreme_decimation.001.png" width="100%">
 	<img src = "results/blub_representative.png" width="100%">
