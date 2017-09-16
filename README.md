@@ -23,5 +23,6 @@ This project uses C++ 11, and it depends on:
 	./decimater ../models/animal.obj num-vertices 1000
 
 ### Examples
+
 	<img src = "results/extreme_decimation.001.png" width="100%">
 	<img src = "results/blub_representative.png" width="100%">
