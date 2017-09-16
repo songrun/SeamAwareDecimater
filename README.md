@@ -21,3 +21,6 @@ This project uses C++ 11, and it depends on:
 ### Run this project
 	./decimater ../models/animal.obj percent-vertices 50
 	./decimater ../models/animal.obj num-vertices 1000
+
+### Examples
+	<img src = "static/img/teaser.png" width="100%">
