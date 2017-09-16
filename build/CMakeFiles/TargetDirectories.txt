@@ -1,4 +1,0 @@
-/Users/songrun/Graphics/SeamlessDecimator/build/CMakeFiles/edit_cache.dir
-/Users/songrun/Graphics/SeamlessDecimator/build/CMakeFiles/rebuild_cache.dir
-/Users/songrun/Graphics/SeamlessDecimator/build/CMakeFiles/decimater.dir
-/Users/songrun/Graphics/SeamlessDecimator/build/CMakeFiles/DEC_LIBS.dir
