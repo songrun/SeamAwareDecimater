@@ -1,4 +1,7 @@
-# Seamless Decimater
+# Seam-aware Decimater
+
+Seam-aware decimater simplifies a mesh while preserving its UV parameterization. It allows 
+the same texture to be used across all decimation levels—notably along seams.
 
 This code depends on:
 
