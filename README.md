@@ -2,7 +2,7 @@
 
 This project implements the seam-aware decimation portion of our SIGGRAPH Asia 2017 paper 
 [Seamless: Seam erasure and seam-aware decoupling of shape from mesh resolution](https://cragl.cs.gmu.edu/seamless/).
-Seam-aware decimater simplifies a mesh while preserving its UV parameterization. It allows 
+Seam-aware decimater simplifies a mesh while preserving its UV's boundary. It allows 
 the same texture to be used across all decimation levels—notably along seams.
 
 Our seam-aware decimation allows seamless texture reuse at all decimation levels (here, approximately 1%). Seams on the original model are shown in
