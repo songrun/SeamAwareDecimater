@@ -22,13 +22,18 @@ This project uses C++ 11, and it depends on:
 	./decimater ../models/animal.obj percent-vertices 50
 	./decimater ../models/animal.obj num-vertices 1000
 
-### Examples
-
+### Example 1
 The Animal model is decimated to 3% of its original number of vertices. The boundary of its UV parameterization stays.
 	<img src = "results/extreme_decimation.001.png" width="100%">
-	
+
+### Example 2	
 Our seam-aware decimation allows seamless texture reuse at all decimation levels (here, approximately 1%). Seams on the original model are shown in
 purple. Parameterizations are shown inset. Garland and Heckbert [1998] (implemented by MeshLab [Cignoni et al. 2008]) do not preserve seams precisely,
 leading to artifacts in the texture. Red areas near seams in the inset parameterization indicate this deviation in the parametric domain. Maya [2017] prevents
 decimation of seams entirely, leading to suboptimal allocation of mesh vertices.	
 	<img src = "results/blub_representative.png" width="100%">
+	
+### References
+Michael Garland and Paul S. Heckbert. 1998. [Simplifying Surfaces with Color and
+Texture Using Quadric Error Metrics](http://dl.acm.org/citation.cfm?id=288280). In IEEE Visualization (VIS).
+[Maya. 2017](http://www.autodesk.com/maya), Autodesk. (2017).
