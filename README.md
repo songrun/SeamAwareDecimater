@@ -36,4 +36,5 @@ decimation of seams entirely, leading to suboptimal allocation of mesh vertices.
 ### References
 Michael Garland and Paul S. Heckbert. 1998. [Simplifying Surfaces with Color and
 Texture Using Quadric Error Metrics](http://dl.acm.org/citation.cfm?id=288280). In IEEE Visualization (VIS).
+
 [Maya. 2017](http://www.autodesk.com/maya), Autodesk. (2017).
