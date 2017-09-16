@@ -5,9 +5,8 @@ the same texture to be used across all decimation levels—notably along seams.
 
 ### Requirements
 
-This code depends on:
+This project uses C++ 11, and it depends on:
 
-- [C++ 11]
 - [libigl](https://github.com/libigl/libigl) (`git clone https://github.com/libigl/libigl.git --recursive`)
 - [eigen](http://eigen.tuxfamily.org/) (e.g. `brew install eigen`)
 
