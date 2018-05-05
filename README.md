@@ -28,6 +28,8 @@ This project uses C++ 11, and it depends on:
 	./decimater ../models/animal.obj percent-vertices 50
 	./decimater ../models/animal.obj num-vertices 1000
 
+   Note: this library only works on triangle mesh.
+
 ### Example
 The Animal model is decimated to 3% of its original number of vertices. The boundary of its UV parameterization stays.
 	<img src = "results/extreme_decimation.001.png" width="100%">
