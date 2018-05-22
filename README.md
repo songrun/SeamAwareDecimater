@@ -36,6 +36,8 @@ Seamless criteria is even stricter than UV shape preservation. I add a "strictne
 Strictness 0 means no UV shape is preserved. But UV parameters is still part of the metrics. 
 Strictness 1 means UV shape is preserved. 
 Strictness 2 means seam aware decimation which also considers the length ratio criteria. It works like this:
+
+###	
 	./decimater ../models/animal.obj percent-vertices 50 --strict 1
 
 ### Example
