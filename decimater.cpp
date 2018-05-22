@@ -14,17 +14,15 @@
 #include <igl/seam_edges.h>
 #include "decimate.h"
 #include "quadric_error_metric.h"
-#include "cost_and_placement.h"
 #include <igl/writeDMAT.h>
 
 // An anonymous namespace. This hides these symbols from other modules.
 namespace {
-std::string csv_path;
 
 void usage( const char* argv0 )
 {
-    std::cerr << "Usage: " << argv0 << " [--stat] <path/to/input.obj> num-vertices     <target_number_of_vertices>  [<path/to/output.obj>]" << std::endl;
-    std::cerr << "Usage: " << argv0 << " [--stat] <path/to/input.obj> percent-vertices <target_percent_of_vertices> [<path/to/output.obj>]" << std::endl;
+    std::cerr << "Usage: " << argv0 << " <path/to/input.obj> num-vertices     <target_number_of_vertices>  [--strict] [<strictness>]" << std::endl;
+    std::cerr << "Usage: " << argv0 << " <path/to/input.obj> percent-vertices <target_percent_of_vertices> [--strict] [<strictness>]" << std::endl;
     exit(-1);
 }
 
@@ -36,6 +34,13 @@ int count_seam_edge_num(const EdgeMap& seam_vertex_edges)
 	}
 	return count / 2;
 }
+
+enum SeamAwareDegree
+{
+	NoUVShapePreserving,
+	UVShapePreserving,
+	Seamless
+};
 
 /*
 Decimates a triangle mesh down to a target number of vertices,
@@ -71,7 +76,7 @@ bool decimate_down_to(
     Eigen::MatrixXi& F_out,
     Eigen::MatrixXd& TC_out,
     Eigen::MatrixXi& FT_out,
-    bool collect_data = false
+    int seam_aware_degree
     )
 {
 #define DEBUG_DECIMATE_DOWN_TO
@@ -150,12 +155,10 @@ bool decimate_down_to(
 		TC, FT,
 		seam_vertex_edges,
 		hash_Q,
-		cost_and_placement_qslim5d_halfedge,
 		target_num_vertices,
+		seam_aware_degree,
 		V_out, F_out,
-		TC_out, FT_out,
-		csv_path,
-		collect_data
+		TC_out, FT_out
 		);
 	std::cout << "#seams after decimation: " << count_seam_edge_num(seam_vertex_edges) << std::endl;
     std::cout << "#interior foldeover: " << interior_foldovers.size() << std::endl;
@@ -166,7 +169,13 @@ bool decimate_down_to(
 
 int main( int argc, char* argv[] ) {
     std::vector<std::string> args( argv + 1, argv + argc );
-    const bool collect_data = pythonlike::get_optional_parameter( args, "--stat" );
+    std::string strictness;
+    int seam_aware_degree = int( SeamAwareDegree::Seamless );
+    const bool found_strictness = pythonlike::get_optional_parameter( args, "--strict", strictness );	
+	if ( found_strictness ) {
+		seam_aware_degree = atoi(strictness.c_str());
+	}
+    
     if( args.size() != 3 && args.size() != 4 )	usage( argv[0] );
     std::string input_path, command, command_parameter;
     pythonlike::unpack( args.begin(), input_path, command, command_parameter );
@@ -217,7 +226,6 @@ int main( int argc, char* argv[] ) {
     }
     
     // Make the default output path.
-    csv_path = pythonlike::os_path_splitext( input_path ).first + ".csv";
     std::string output_path = pythonlike::os_path_splitext( input_path ).first + "-decimated_to_" + std::to_string( target_num_vertices ) + "_vertices.obj";
     if( !args.empty() ) {
         output_path = args.front();
@@ -230,7 +238,7 @@ int main( int argc, char* argv[] ) {
     // Decimate!
     Eigen::MatrixXd V_out, TC_out, CN_out;
     Eigen::MatrixXi F_out, FT_out, FN_out;
-    const bool success = decimate_down_to( V, F, TC, FT, target_num_vertices, V_out, F_out, TC_out, FT_out, collect_data );
+    const bool success = decimate_down_to( V, F, TC, FT, target_num_vertices, V_out, F_out, TC_out, FT_out, seam_aware_degree );
     if( !success ) {
         std::cerr << "WARNING: decimate_down_to() returned false (target number of vertices may have been unachievable)." << std::endl;
     }

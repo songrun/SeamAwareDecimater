@@ -29,7 +29,16 @@ This project uses C++ 11, and it depends on:
 	./decimater ../models/animal.obj num-vertices 1000
 
    Note: this library only works on triangle mesh.
+   
+### Various strictness
+
+Seamless criteria is even stricter than UV shape preservation. I add a "strictness" parameter to satisfy different requirements. strictness could be 0, 1, or 2.
+Strictness 0 means no UV shape is preserved. But UV parameters is still part of the metrics. 
+Strictness 1 means UV shape is preserved. 
+Strictness 2 means seam aware decimation which also considers the length ratio criteria. It works like this:
+	./decimater ../models/animal.obj percent-vertices 50 --strict 1
 
 ### Example
 The Animal model is decimated to 3% of its original number of vertices. The boundary of its UV parameterization stays.
 	<img src = "results/extreme_decimation.001.png" width="100%">
+	<img src = "results/strictness.png" width="100%">

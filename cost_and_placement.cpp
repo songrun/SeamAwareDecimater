@@ -34,7 +34,7 @@ const double DINF = std::numeric_limits<double>::infinity();
 
 // get plane from three points, and express it as ax + by + cz + d = 0. 
 // return coefficients a,b,c,d as result
-Eigen::Vector4d face_from_three_points(
+Eigen::Vector4d face_from_three_points (
 	const Eigen::Vector3d& v1, const Eigen::Vector3d& v2, const Eigen::Vector3d& v3)
 {
 	Eigen::Vector3d n = (v2-v1).cross(v3-v1);
@@ -48,7 +48,7 @@ Eigen::Vector4d face_from_three_points(
 	return res;
 }
 
-void cost_and_placement_qslim5d_halfedge(
+void cost_and_placement_qslim5d_halfedge (
 	const Bundle & e,
 	const Eigen::MatrixXd & V,
 	const Eigen::MatrixXi & F,
@@ -56,6 +56,7 @@ void cost_and_placement_qslim5d_halfedge(
 	const Eigen::MatrixXi & FT,
 	const EdgeMap & seam_edges,
 	const MapV5d  & Vmetrics,
+	const int seam_aware_degree,
 	double &                cost,
 	placement_info_5d &     new_placement
 	)
@@ -129,7 +130,6 @@ void cost_and_placement_qslim5d_halfedge(
 			Eigen::RowVector2d uv1 = TC.row(tci_1);
 			Eigen::RowVector2d uv2 = TC.row(tci_2);
 			Eigen::RowVector2d uv3 = TC.row(tci_3);
-// 			assert( (uv3-uv2).norm() != 0 );
 			if( (uv3-uv2).norm() == 0 ) 	return DINF;
 			return (uv2-uv1).norm()/(uv3-uv2).norm();
 		};
@@ -152,7 +152,14 @@ void cost_and_placement_qslim5d_halfedge(
 						ratio[1] = edge_ratio(tcj, e_p1[1].tci, e_p0[1].tci);
 					}
 				}
-				if( ratio[0]!=DINF && ratio[1]!=DINF && abs(ratio[0]-ratio[1]) <= 1e-3 ) 	is_free[end] = true;
+				switch (seam_aware_degree) {
+					case 0: is_free[end] = true; 
+						break;
+					case 1: if (ratio[0]!=DINF && ratio[1]!=DINF) is_free[end] = true;
+						break;
+					case 2: if (ratio[0]!=DINF && ratio[1]!=DINF && abs(ratio[0]-ratio[1]) <= 1e-3) is_free[end] = true;
+						break;
+				}
 			}
 		}
 
@@ -350,87 +357,4 @@ void cost_and_placement_qslim5d_halfedge(
 	RowVectorXd v = Z;
 	cost = v*new_metric*v.transpose();
 
-}
-
-void check_edge_decimatable(
-	const Bundle & e,
-	const Eigen::MatrixXd & V,
-	const Eigen::MatrixXi & F,
-	const Eigen::MatrixXd & TC,
-	const Eigen::MatrixXi & FT,
-	const EdgeMap & seam_edges,
-	const MapV5d & Vmetrics,
-	bool & is_seam_edge,
-	bool & is_decimatable
-	)
-{
-	using namespace std;
-	const int vi[2] = {e[0].p[0].vi, e[0].p[1].vi};
-	is_seam_edge = false;
-	is_decimatable = true;
-	/// case 1: 
-	// (vi[0], vi[1]) in seam_edges, compute each half edge
-	if( contains_edge( seam_edges, vi[0], vi[1] ) ) {
-		is_seam_edge = true;
-		VertexBundle e_p0[2];		// two Vertex5d for both sides at one end
-		VertexBundle e_p1[2];		// two Vertex5d for both sides at the other end
-		for(int side=0; side<2; side++) {
-			e_p0[side] = e[side].p[0];
-			e_p1[side] = e[side].p[1];
-		}
-		
-		// TODO: Check that the seam edges are collinear with
-		//       their neighbors along the seam. If they are not, return DINF.
-		const auto & is_collinear = [&TC](const int tci_1, const int tci_2, const int tci_3)
-		{
-			assert( tci_1 >= 0 && tci_1 <TC.rows() );
-			assert( tci_2 >= 0 && tci_2 <TC.rows() );
-			assert( tci_3 >= 0 && tci_3 <TC.rows() );
-			Eigen::RowVector2d uv1 = TC.row(tci_1);
-			Eigen::RowVector2d uv2 = TC.row(tci_2);
-			Eigen::RowVector2d uv3 = TC.row(tci_3);
-			Eigen::RowVector2d n1 = (uv2-uv1)/(uv2-uv1).norm();
-			Eigen::RowVector2d n2 = (uv3-uv1)/(uv3-uv1).norm();
-			return 1-fabs(n1.dot(n2)) < eps;
-		};
-		const auto & edge_ratio = [&TC](const int tci_1, const int tci_2, const int tci_3)
-		{
-			assert( tci_1 >= 0 && tci_1 <TC.rows() );
-			assert( tci_2 >= 0 && tci_2 <TC.rows() );
-			assert( tci_3 >= 0 && tci_3 <TC.rows() );
-			Eigen::RowVector2d uv1 = TC.row(tci_1);
-			Eigen::RowVector2d uv2 = TC.row(tci_2);
-			Eigen::RowVector2d uv3 = TC.row(tci_3);
-// 			assert( (uv3-uv2).norm() != 0 );
-			if( (uv3-uv2).norm() == 0 ) 	return DINF;
-			return (uv2-uv1).norm()/(uv3-uv2).norm();
-		};
-		
-		bool is_free[2] = {false, false};	// Correspond to vi[2] 	
-		// for each end of one side, search its neighbor seam edges to check if anyone is collinear with e
-		for(int end=0; end<2; end++) {
-			// An end is free only if it has exactly two neighboring seam edges
-			if(seam_edges.at(vi[end]).size() != 2)	continue;
-			for(auto vj : seam_edges.at(vi[end])) {		// all the neighboring seam vertices.
-				// test if exist one vertex which has two uvs collinear with both sides of e's uvs 
-				if( vj == vi[1-end] )	continue;
-                double ratio[2] = {DINF, DINF};
-				for(auto item : Vmetrics.at(vj)) {		// all the tci for one neighboring seam vertex.
-					int tcj = item.first;
-					if(is_collinear(tcj, e_p0[0].tci, e_p1[0].tci)) {
-						ratio[0] = edge_ratio(tcj, e_p0[0].tci, e_p1[0].tci);
-					}
-					if(is_collinear(tcj, e_p0[1].tci, e_p1[1].tci)) {
-						ratio[1] = edge_ratio(tcj, e_p1[1].tci, e_p0[1].tci);
-					}
-				}
-				if( ratio[0]!=DINF && ratio[1]!=DINF && abs(ratio[0]-ratio[1]) <= 1e-3 ) 	is_free[end] = true;
-			}
-		}
-
-		// neither end has collinear neighbor seam edge, shouldn't touch it.
-		if( !is_free[0] && !is_free[1] ) {
-			is_decimatable = false;
-		}
-	}
 }

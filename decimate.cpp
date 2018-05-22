@@ -62,6 +62,7 @@ void prepare_decimate_halfedge_5d(
     EdgeMap & seam_edges,
     MapV5d & Vmetrics,
     int & target_num_vertices,
+    const int seam_aware_degree,
     // output
     Eigen::MatrixXd & V,
 	Eigen::MatrixXi & F,
@@ -161,7 +162,7 @@ void prepare_decimate_halfedge_5d(
 		double cost = -31337;
 		placement_info_5d new_placement;
 		Bundle b = get_half_edge_bundle( e, E, EF, EI, F, FT );
-		cost_and_placement_qslim5d_halfedge(b,V,F,TC,FT,seam_edges,Vmetrics,cost,new_placement);
+		cost_and_placement_qslim5d_halfedge(b,V,F,TC,FT,seam_edges,Vmetrics,seam_aware_degree,cost,new_placement);
 		C.at(e) = new_placement;
 		Qit[e] = Q.insert(std::pair<double,int>(cost,e)).first;
 	}
@@ -181,6 +182,7 @@ bool collapse_one_edge(
 	Eigen::MatrixXi & EI,
     EdgeMap & seam_edges,
     MapV5d & Vmetrics,
+    const int seam_aware_degree,
 	PriorityQueue & Q, 
 	std::vector<PriorityQueue::iterator > & Qit, 
 	std::vector< placement_info_5d > & C, 
@@ -205,7 +207,7 @@ bool collapse_one_edge(
 			break;
 		}
 
-		if(collapse_edge_with_uv(cost_and_placement_qslim5d_halfedge,V,F,E,EMAP,EF,EI,TC,FT,seam_edges,Vmetrics,Q,Qit,C,e,debug))
+		if(collapse_edge_with_uv(V,F,E,EMAP,EF,EI,TC,FT,seam_edges,Vmetrics,seam_aware_degree,Q,Qit,C,e,debug))
 		{
 			success = true;
 			break;
@@ -228,24 +230,12 @@ bool decimate_halfedge_5d(
     const Eigen::MatrixXi & OFT,
     EdgeMap & seam_edges,
     MapV5d & Vmetrics,
-    const std::function<void(
-		const std::vector<HalfEdge> &/*it*/,
-		const Eigen::MatrixXd &/*V*/,
-		const Eigen::MatrixXi &/*F*/,
-		const Eigen::MatrixXd &/*TC*/,
-		const Eigen::MatrixXi &/*FT*/,
-		const EdgeMap &/*seam_edges*/,
-		const MapV5d & /*Vmetrics*/,
-		double &               /*cost*/,
-		placement_info_5d &    /*new_placement*/
-		)> & cost_and_placement,
     int target_num_vertices,
+    const int seam_aware_degree,
     Eigen::MatrixXd & V_out,
     Eigen::MatrixXi & F_out,
     Eigen::MatrixXd & TC_out,
-    Eigen::MatrixXi & FT_out,
-    const std::string & csv_path,
-    bool collect_data
+    Eigen::MatrixXi & FT_out
     )
 {
 	using namespace Eigen;
@@ -263,65 +253,17 @@ bool decimate_halfedge_5d(
 	PriorityQueue Q;
 	std::vector<PriorityQueue::iterator > Qit;
 	std::vector< placement_info_5d > C;
-	prepare_decimate_halfedge_5d(OV,OF,OTC,OFT,seam_edges,Vmetrics,target_num_vertices,
+	prepare_decimate_halfedge_5d(OV,OF,OTC,OFT,seam_edges,Vmetrics,target_num_vertices,seam_aware_degree,
 			V,F,TC,FT,EMAP,E,EF,EI,Q,Qit,C);
 	
 	int prev_e = -1;
 	bool clean_finish = false;
 	int remain_vertices=V.rows();
 	
-	// output #vertices, #faces, #distance, etc.
-	ofstream csv;
-	if(collect_data) {			
-		csv.open(csv_path);
-		csv << "#vertices,#faces,#edges,#seam edges,hausdorff error,#undecimatable seam edge, cost\n";
-	}
 	int next_output_target = V.rows();
 	int suffix = 0;
 	while(true)
-	{
-		// collect data and save out decimation sequence
-		if(remain_vertices == next_output_target && csv.is_open()) {
-			clean_mesh(V,F,TC,FT,OF.rows(),V_out,F_out,TC_out,FT_out);
-			const int num_edges = F_out.rows()*3/2;
-			cout << "record: " << remain_vertices << endl;
-			
-			bool is_seam, is_decimatable;
-			int seam_count=0, undecimatable_seam_count=0;
-			for(int e=0; e<E.rows(); e++) {
-				//int e = Q.begin() -> second;
-				Bundle b = get_half_edge_bundle( e, E, EF, EI, F, FT );
-				check_edge_decimatable(b,V,F,TC,FT,seam_edges,Vmetrics,is_seam,is_decimatable);
-				if(is_seam) 	seam_count++;
-				if(!is_decimatable)		undecimatable_seam_count++;
-			}
-			double error;
-			igl::hausdorff( OV, OF, V_out, F_out, error );
-			
-			double cost = Q.begin()->first;
-			csv << V_out.rows() << ","
-				<< F_out.rows() << ","
-				<< num_edges << ","
-				<< seam_count << ","
-				<< error << ","
-				<< undecimatable_seam_count << ","
-				<< cost << "\n";
-			
-			Eigen::MatrixXd CN_out;
-    		Eigen::MatrixXi FN_out;
-    		
-    		auto name_format = [](int suffix) {
-    			string name = to_string(suffix);
-    			for(int i = name.length(); i<3; i++) {
-    				name = "0" + name;
-    			}
-    			return name+".obj";
-    		};
-    		
-			next_output_target = remain_vertices - max(int(remain_vertices*0.01), 1);
-			suffix++;
-		}
-		
+	{		
 		if(Q.empty())
 		{
 			cout << "empty queue" << endl;
@@ -334,7 +276,7 @@ bool decimate_halfedge_5d(
 			break;
 		}
 		
-		bool collapse_success = collapse_one_edge(V,F,TC,FT,EMAP,E,EF,EI,seam_edges,Vmetrics,Q,Qit,C,prev_e);
+		bool collapse_success = collapse_one_edge(V,F,TC,FT,EMAP,E,EF,EI,seam_edges,Vmetrics,seam_aware_degree,Q,Qit,C,prev_e);
 		if(!collapse_success) {
 			clean_finish = false;
 			break;
@@ -345,7 +287,6 @@ bool decimate_halfedge_5d(
 		}
 		remain_vertices--;
 	}
-	if(csv.is_open())	csv.close();
 
 	// remove all DUV_COLLAPSE_EDGE_NULL faces
 	clean_mesh(V,F,TC,FT,OF.rows(),V_out,F_out,TC_out,FT_out);

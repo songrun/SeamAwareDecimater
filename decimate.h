@@ -57,24 +57,12 @@ bool decimate_halfedge_5d(
     const Eigen::MatrixXi & FT,
     EdgeMap & seam_edges,
     MapV5d & Vmetrics,
-    const std::function<void(
-      const std::vector<HalfEdge> &/*it*/,
-      const Eigen::MatrixXd &/*V*/,
-      const Eigen::MatrixXi &/*F*/,
-      const Eigen::MatrixXd &/*TC*/,
-      const Eigen::MatrixXi &/*FT*/,
-      const EdgeMap &/*seam_edges*/,
-      const MapV5d & /*Vmetrics*/,
-      double &               /*cost*/,
-      placement_info_5d &    /*new_placement*/
-      )> & cost_and_placement,
     int target_num_vertices,
+    const int seam_aware_degree,
     Eigen::MatrixXd & V_out,
     Eigen::MatrixXi & F_out,
     Eigen::MatrixXd & TC_out,
-    Eigen::MatrixXi & FT_out,
-    const std::string & csv_path,
-    bool collect_data = false
+    Eigen::MatrixXi & FT_out
     );
     
 void clean_mesh(
@@ -96,6 +84,7 @@ void prepare_decimate_halfedge_5d(
     EdgeMap & seam_edges,
     MapV5d & Vmetrics,
     int & target_num_vertices,
+    const int seam_aware_degree,
     // output
     Eigen::MatrixXd & V,
 	Eigen::MatrixXi & F,
@@ -120,6 +109,7 @@ bool collapse_one_edge(
 	Eigen::MatrixXi & EI,
     EdgeMap & seam_edges,
     MapV5d & Vmetrics,
+    const int seam_aware_degree,
 	PriorityQueue & Q, 
 	std::vector<PriorityQueue::iterator > & Qit, 
 	std::vector< placement_info_5d > & C, 

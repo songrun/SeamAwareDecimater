@@ -4,6 +4,7 @@
 #include "decimate.h"
 #include "neighbor_faces_and_boundary.h"
 #include "detect_foldover.h"
+#include "cost_and_placement.h"
 
 bool try_collapse_5d_Edge(
 	const int e,
@@ -302,17 +303,6 @@ bool try_collapse_5d_Edge(
 }
     
 bool collapse_edge_with_uv(
-    const std::function<void(
-      const std::vector<HalfEdge> &,
-      const Eigen::MatrixXd &,
-      const Eigen::MatrixXi &,
-      const Eigen::MatrixXd &,
-      const Eigen::MatrixXi &,
-      const EdgeMap &,
-      const MapV5d &,
-      double &,
-      placement_info_5d &
-      )> & cost_and_placement,
     Eigen::MatrixXd & V,
     Eigen::MatrixXi & F,
     Eigen::MatrixXi & E,
@@ -323,6 +313,7 @@ bool collapse_edge_with_uv(
     Eigen::MatrixXi & FT, //  Texture coordinates per face.
     EdgeMap & seam_edges, //  A set of indices into V or TC for vertices which lie on edges which should be preserved.
     MapV5d & Vmetrics, //  The per-vertex data.
+    int seam_aware_degree,
     std::set<std::pair<double,int> > & Q,
     std::vector<std::set<std::pair<double,int> >::iterator > & Qit,
     std::vector< placement_info_5d > & C,
@@ -401,7 +392,7 @@ bool collapse_edge_with_uv(
 				double cost;
 				placement_info_5d place;
 				Bundle b = get_half_edge_bundle( ei, E, EF, EI, F, FT );
-				cost_and_placement(b,V,F,TC,FT,seam_edges,Vmetrics,cost,place);
+				cost_and_placement_qslim5d_halfedge(b,V,F,TC,FT,seam_edges,Vmetrics,seam_aware_degree,cost,place);
 				// Replace in queue
 				Qit[ei] = Q.insert(std::pair<double,int>(cost,ei)).first;
 				C.at(ei) = place;

@@ -54,17 +54,6 @@ bool try_collapse_5d_Edge(
     int & a_e2);
         
 bool collapse_edge_with_uv(
-    const std::function<void(
-      const std::vector<HalfEdge> &,
-      const Eigen::MatrixXd &,
-      const Eigen::MatrixXi &,
-      const Eigen::MatrixXd &,
-      const Eigen::MatrixXi &,
-      const EdgeMap &,
-      const MapV5d &,
-      double &,
-      placement_info_5d &
-      )> & cost_and_placement,
     Eigen::MatrixXd & V,
     Eigen::MatrixXi & F,
     Eigen::MatrixXi & E,
@@ -75,6 +64,7 @@ bool collapse_edge_with_uv(
     Eigen::MatrixXi & FT, // TODO: Texture coordinates per face.
     EdgeMap & seam_edges, // TODO: A set of edges in V for vertices which lie on edges which should be preserved.
     MapV5d & Vmetrics, // TODO: The per-vertex data.
+    int seam_aware_degree,
     std::set<std::pair<double,int> > & Q,
     std::vector<std::set<std::pair<double,int> >::iterator > & Qit,
     std::vector< placement_info_5d > & C,
