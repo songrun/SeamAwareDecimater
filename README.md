@@ -41,7 +41,7 @@ Strictness 2 means seam aware decimation which also considers the length ratio c
 	./decimater ../models/animal.obj percent-vertices 50 --strict 1
 	./decimater ../models/animal.obj num-vertices 1000 --strict 1
 	
-	The default strictness is 2.
+The default strictness is 2.
 
 ### Example
 The Animal model is decimated to 3% of its original number of vertices. The boundary of its UV parameterization stays.
