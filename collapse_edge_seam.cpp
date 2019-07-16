@@ -38,13 +38,13 @@ bool try_collapse_5d_Edge(
 		EI(e,0) = DUV_COLLAPSE_EDGE_NULL;
 		EI(e,1) = DUV_COLLAPSE_EDGE_NULL;
 	};
-	
+
 	const int eflip = E(e,0)>E(e,1);
 	// source and destination
 	const int s = eflip?E(e,1):E(e,0);
 	const int d = eflip?E(e,0):E(e,1);
 	const bool collapse_on_seam = contains_edge( seam_edges, s, d );
-	
+
 	// If both endpoints are on seams, but there is no seam between them, reject it.
 	if( seam_edges.count( s ) && seam_edges.count( d ) && !collapse_on_seam ) {
 	    return false;
@@ -56,13 +56,13 @@ bool try_collapse_5d_Edge(
 		return false;
 	}
 	// Important to grab neighbors of d before monkeying with edges
-	const std::vector<int> nV2Fd = igl::circulation(e,!eflip,F,E,EMAP,EF,EI);
+	const std::vector<int> nV2Fd = igl::circulation(e,!eflip,EMAP,EF,EI);
 	// We need the neighbors of s in case d is a seam "corner".
-	const std::vector<int> nV2Fs = igl::circulation(e, eflip,F,E,EMAP,EF,EI);
-	
+	const std::vector<int> nV2Fs = igl::circulation(e, eflip,EMAP,EF,EI);
+
 	Bundle bundle = get_half_edge_bundle( e, E, EF, EI, F, FT );
     assert( bundle.size() == 2 );
-	
+
 	// 	sGet s_tc and d_tc by looking at F via EF/EI.
 	int s_tc = bundle[0].p[0].tci;
 	int d_tc = bundle[0].p[1].tci;
@@ -74,7 +74,7 @@ bool try_collapse_5d_Edge(
 	    assert( bundle[0].p[0].vi == s );
 	    assert( bundle[0].p[1].vi == d );
 	}
-	
+
 	// test fold-over
 	const bool disable_boundary_foldover = true;
 	if( disable_boundary_foldover && !collapse_on_seam ) {
@@ -106,8 +106,8 @@ bool try_collapse_5d_Edge(
 				}
 			}
 		}
-	}	
-	
+	}
+
 	// The following implementation strongly relies on s<d
 	assert(s<d && "s should be less than d");
 	// Preserve seams.
@@ -152,7 +152,7 @@ bool try_collapse_5d_Edge(
 		// Update the per-vertex metric.
 		// Move the other d metrics to s.
 		assert(bundle[0].p[0] == bundle[1].p[0] || bundle[0].p[0] == bundle[1].p[1]);
-		assert(bundle[0].p[1] == bundle[1].p[0] || bundle[0].p[1] == bundle[1].p[1]);		
+		assert(bundle[0].p[1] == bundle[1].p[0] || bundle[0].p[1] == bundle[1].p[1]);
 		Vmetrics[d].erase(d_tc);
 		Vmetrics[s].insert(Vmetrics[d].begin(), Vmetrics[d].end());
 		Vmetrics.erase(d);
@@ -188,7 +188,7 @@ bool try_collapse_5d_Edge(
 		//       all three vertices on either face flap are seam vertices.
 		// If only e1 is a seam edge, meaning d is a seam vertex, but s is not,
 		// we need to use our rename_vertex(d, s) function. We do it at the end.
-		
+
 		// face adjacent to f on e1, also incident on d
 		const bool flip1 = EF(e1,1)==f;
 		const int f1 = flip1 ? EF(e1,0) : EF(e1,1);
@@ -224,13 +224,13 @@ bool try_collapse_5d_Edge(
 		E(e2,1) = E(e2,1)==d ? s : E(e2,1);
 		if(side==0)	a_e1 = e1;
 		else		a_e2 = e1;
-	}	
-	
+	}
+
 	// Loop over face neighborhood of d.
 	// We always collapse d to s, so these faces should be
 	// updated to have their d vertex index point to s.
 	for(int i=1; i<nV2Fd.size()-1; i++)
-	{ 
+	{
 		const int f = nV2Fd[i];
 		for(int v=0; v<3; v++)
 		{
@@ -238,20 +238,20 @@ bool try_collapse_5d_Edge(
 			{
 				const int flip1 = (EF(EMAP(f+m*((v+1)%3)),0)==f)?1:0;
 				const int flip2 = (EF(EMAP(f+m*((v+2)%3)),0)==f)?0:1;
-				assert(E(EMAP(f+m*((v+1)%3)),flip1) == d 
+				assert(E(EMAP(f+m*((v+1)%3)),flip1) == d
 					|| E(EMAP(f+m*((v+1)%3)),flip1) == s);
 				E(EMAP(f+m*((v+1)%3)),flip1) = s;
-				assert(E(EMAP(f+m*((v+2)%3)),flip2) == d 
+				assert(E(EMAP(f+m*((v+2)%3)),flip2) == d
 					|| E(EMAP(f+m*((v+2)%3)),flip2) == s);
 				E(EMAP(f+m*((v+2)%3)),flip2) = s;
 				F(f,v) = s;
 				// Update FT to point to the other endpoint.
-				// If d is on the seam, some F neighbors won't be FT neighbors. Only update FT entries 
+				// If d is on the seam, some F neighbors won't be FT neighbors. Only update FT entries
 				// that actually pointed to d_tc. (If "s" were the seam vertex, we wouldn't have to do this check.)
 				// If d is a seam vertex, some face(s) incident at d
 				// will not have texture coordinate d_tc.
 				// Only update the ones that do.
-				
+
                 // Normally F and FTC have the same number of faces.
                 // For meshes with boundaries, though, they won't.
                 // The outside-of-the-mesh side of the boundary
@@ -274,12 +274,12 @@ bool try_collapse_5d_Edge(
 			}
 		}
 	}
-	
+
 	// Check for seam corners.
 	const bool seam_corner = d_pair[0].tci == d_pair[1].tci;
 	if( collapse_on_seam && seam_corner ) {
 		for(int i=1; i<nV2Fs.size()-1; i++)
-		{ 
+		{
 			const int f = nV2Fs[i];
 			for(int v=0; v<3; v++)
 			{
@@ -287,7 +287,7 @@ bool try_collapse_5d_Edge(
 			}
 		}
 	}
-	
+
 	// If 's' was a seam vertex and 'd' wasn't, we don't need to do anything. d was removed.
 	// If 'd' was a seam vertex and 's' wasn't, we need to rename 'd' to 's'.
 	if( seam_edges.count(d) && !seam_edges.count(s) ) rename_vertex( seam_edges, d, s );
@@ -295,13 +295,13 @@ bool try_collapse_5d_Edge(
 	assert( !( seam_edges.count(d) && seam_edges.count(s) && !contains_edge( seam_edges, d, s ) ) );
 	// If (s,d) is a seam_edge, collapse it 'd' to 's'.
 	if( contains_edge( seam_edges, d, s ) ) 		::collapse_edge( seam_edges, d, s );
-	
+
 	// Finally, "remove" this edge and its information
 	kill_edge(e);
 
 	return true;
 }
-    
+
 bool collapse_edge_with_uv(
     Eigen::MatrixXd & V,
     Eigen::MatrixXi & F,
@@ -337,14 +337,14 @@ bool collapse_edge_with_uv(
 	Q.erase(Q.begin());
 	e = p.second;
 	Qit[e] = Q.end();
-  
+
 	// Get the one-ring of faces as N.
 	std::unordered_set<int> N;
-	std::vector<int> Ne = circulation(e, true,F,E,EMAP,EF,EI);
+	std::vector<int> Ne = circulation(e, true,EMAP,EF,EI);
 	N.insert( Ne.begin(), Ne.end() );
-	Ne = circulation(e,false,F,E,EMAP,EF,EI);
+	Ne = circulation(e,false,EMAP,EF,EI);
 	N.insert( Ne.begin(), Ne.end() );
-  
+
 	int e1,e2;
 	const bool collapsed =
     	try_collapse_5d_Edge(e,C.at(e),V,F,E,EMAP,EF,EI,TC,FT,seam_edges,Vmetrics,e1,e2);
