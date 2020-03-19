@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 2.8.6)
+project(SeamAwareDecimater)
 
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
@@ -15,7 +16,6 @@ add_definitions(-DIGL_NO_MOSEK)
 
 link_directories(
 	/usr/local/lib
-	/opt/local/lib
 	${EIGEN_DIRS}
 ) 
 

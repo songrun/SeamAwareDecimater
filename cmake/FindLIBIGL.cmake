@@ -11,6 +11,7 @@ FIND_PATH(LIBIGL_INCLUDE_DIR igl/readOBJ.h
    ${PROJECT_SOURCE_DIR}/../../include
    ${PROJECT_SOURCE_DIR}/../include
    ${PROJECT_SOURCE_DIR}/include
+   ${PROJECT_SOURCE_DIR}/ext/libigl/include
    ${PROJECT_SOURCE_DIR}/../libigl/include
    ${PROJECT_SOURCE_DIR}/../../libigl/include
    $ENV{LIBIGL}/include
