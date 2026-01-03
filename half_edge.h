@@ -28,8 +28,10 @@ struct HalfEdge
 	HalfEdge(int fi, int ki);
 };
 
+typedef Eigen::Matrix<double, 6, 6> Matrix6d;
+
 // A map from vertex_index to texcoord_index to metrics.
-typedef std::unordered_map< int, std::unordered_map< int, Eigen::MatrixXd > > MapV5d;
+typedef std::vector< std::unordered_map< int, Matrix6d > > MapV5d;
 typedef std::vector<HalfEdge> Bundle;
 
 Bundle get_half_edge_bundle(

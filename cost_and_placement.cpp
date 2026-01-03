@@ -79,7 +79,7 @@ void cost_and_placement_qslim5d_halfedge (
 	}
 		
 	solver = EIQUADPROG;
-	MatrixXd new_metric;
+	Matrix6d new_metric;
 	
 	// two vertex indices on one side of b
 	const int vi[2] = {b[0].p[0].vi, b[0].p[1].vi};
@@ -94,12 +94,12 @@ void cost_and_placement_qslim5d_halfedge (
 	if( contains_edge( seam_edges, vi[0], vi[1] ) ) {
 		VertexBundle b_p0[2];		// two Vertex5d for both sides at one end
 		VertexBundle b_p1[2];		// two Vertex5d for both sides at the other end
-		MatrixXd m[2];				// two metrics
+		Matrix6d m[2];				// two metrics
 		for(int side=0; side<2; side++) {
 			b_p0[side] = b[side].p[0];
 			b_p1[side] = b[side].p[1];
-			m[side] = Vmetrics.at(b_p0[side].vi).at(b_p0[side].tci) 
-					+ Vmetrics.at(b_p1[side].vi).at(b_p1[side].tci);
+			m[side] = Vmetrics[b_p0[side].vi].at(b_p0[side].tci) 
+					+ Vmetrics[b_p1[side].vi].at(b_p1[side].tci);
 		}
 		
 		// TODO: Check that the seam edges are collinear with
@@ -136,8 +136,8 @@ void cost_and_placement_qslim5d_halfedge (
 			for(auto vj : seam_edges.at(vi[end])) {		// all the neighboring seam vertices.
 				// test if exist one vertex which has two uvs collinear with both sides of b's uvs 
 				if( vj == vi[1-end] )	continue;
-                double ratio[2] = {DINF, DINF};
-				for(auto item : Vmetrics.at(vj)) {		// all the tci for one neighboring seam vertex.
+				double ratio[2] = {DINF, DINF};
+				for(auto item : Vmetrics[vj]) {		// all the tci for one neighboring seam vertex.
 					int tcj = item.first;
 					if(is_collinear(tcj, b_p0[0].tci, b_p1[0].tci)) {
 						ratio[0] = edge_ratio(tcj, b_p0[0].tci, b_p1[0].tci);
@@ -151,7 +151,9 @@ void cost_and_placement_qslim5d_halfedge (
 						break;
 					case 1: if (ratio[0]!=DINF && ratio[1]!=DINF) is_free[end] = true;
 						break;
-					case 2: if (ratio[0]!=DINF && ratio[1]!=DINF && abs(ratio[0]-ratio[1]) <= 1e-3) is_free[end] = true;
+					case 2: 
+					default:
+						if (ratio[0]!=DINF && ratio[1]!=DINF && abs(ratio[0]-ratio[1]) <= 1e-3) is_free[end] = true;
 						break;
 				}
 			}
@@ -184,38 +186,38 @@ void cost_and_placement_qslim5d_halfedge (
 		}
 		// Finally, if both ends are free. Collapse the edge to a point on the seam.
 		// And the uv on both sides should be proportional.
-		VectorXd Z;
+		Vector<double, 8> Z;
 		// The unknowns are x,y,z,u0,v0,u1,v1,1
-		MatrixXd G(8,8);
+		Matrix<double, 8, 8> G;
 		G.setZero();
 		// combine both sides' metric of b
 		if( solver == EIQUADPROG ) {
 			// build new metric
-			G.block(0,0,3,3) = m[0].block(0,0,3,3) + m[1].block(0,0,3,3);
-			G.block(3,0,2,3) = m[0].block(3,0,2,3);
-			G.block(0,3,3,2) = m[0].block(0,3,3,2);
-			G.block(3,3,2,2) = m[0].block(3,3,2,2);
-			G.block(5,0,2,3) = m[1].block(3,0,2,3);
-			G.block(0,5,3,2) = m[1].block(0,3,3,2);
-			G.block(5,5,2,2) = m[1].block(3,3,2,2);
-			RowVectorXd b(7);	// b is the linear term in combined metric
-			b.segment(0,3) = m[0].block(5,0,1,3) + m[1].block(5,0,1,3);
-			b.segment(3,2) = m[0].block(5,3,1,2);
-			b.segment(5,2) = m[1].block(5,3,1,2);
-			G.block(7,0,1,7) = b;
-			G.block(0,7,7,1) = b.transpose();
+			G.block<3, 3>(0, 0) = m[0].block<3, 3>(0, 0) + m[1].block<3, 3>(0, 0);
+			G.block<2, 3>(3, 0) = m[0].block<2, 3>(3, 0);
+			G.block<3, 2>(0, 3) = m[0].block<3, 2>(0, 3);
+			G.block<2, 2>(3, 3) = m[0].block<2, 2>(3, 3);
+			G.block<2, 3>(5, 0) = m[1].block<2, 3>(3, 0);
+			G.block<3, 2>(0, 5) = m[1].block<3, 2>(0, 3);
+			G.block<2, 2>(5, 5) = m[1].block<2, 2>(3, 3);
+			RowVector<double, 7> b_linear;	// b_linear is the linear term in combined metric
+			b_linear.segment<3>(0) = m[0].block<1, 3>(5, 0) + m[1].block<1, 3>(5, 0);
+			b_linear.segment<2>(3) = m[0].block<1, 2>(5, 3);
+			b_linear.segment<2>(5) = m[1].block<1, 2>(5, 3);
+			G.block<1, 7>(7, 0) = b_linear;
+			G.block<7, 1>(0, 7) = b_linear.transpose();
 			G(7,7) = m[0](5,5) + m[1](5,5);
 			
 			// regularizer
 			const double w = 1e-6;
-			MatrixXd reg(8,8);
+			Matrix<double, 8, 8> reg;
 			reg.setIdentity();
-			G.block(0,0,8,8) = G.block(0,0,8,8) + w*reg;
-			VectorXd g0(8);
+			G = G + w*reg;
+			Vector<double, 8> g0;
 			g0.setOnes();
-			g0.segment(0,3) = (V.row(b_p0[0].vi)+V.row(b_p1[0].vi))/2;
-			g0.segment(3,2) = (TC.row(b_p0[0].tci)+TC.row(b_p1[0].tci))/2;
-			g0.segment(5,2) = (TC.row(b_p0[1].tci)+TC.row(b_p1[1].tci))/2;
+			g0.segment<3>(0) = (V.row(b_p0[0].vi)+V.row(b_p1[0].vi))/2;
+			g0.segment<2>(3) = (TC.row(b_p0[0].tci)+TC.row(b_p1[0].tci))/2;
+			g0.segment<2>(5) = (TC.row(b_p0[1].tci)+TC.row(b_p1[1].tci))/2;
 			g0 = -w*g0;
 			
 			// Add the constraint that uv0 and uv1 stay on the same uv-space line
@@ -248,8 +250,8 @@ void cost_and_placement_qslim5d_halfedge (
 				return;
 			}
 			// New code end
-			MatrixXd CE(8,4);
-			VectorXd ce0(4);
+			Matrix<double, 8, 4> CE;
+			Vector<double, 4> ce0;
 			CE.setZero();
 			CE(7,0) = 1.0;
 			ce0(0) = -1;
@@ -279,8 +281,8 @@ void cost_and_placement_qslim5d_halfedge (
 			
 			// inequality constraints:
 			// t >= 0 && t <= 1
-			MatrixXd CI(8,2);
-			VectorXd ci0(2);
+			Matrix<double, 8, 2> CI;
+			Vector<double, 2> ci0;
 			CI.setZero();
 			if( vec[0](0) != 0 ) {
 				double sign = vec[0](0) > 0 ? 1 : -1;
@@ -297,19 +299,25 @@ void cost_and_placement_qslim5d_halfedge (
 				ci0(1) = sign*(TC.row(b_p0[0].tci)(1)+vec[0](1));
 			}
 			
-			solve_quadprog(G,g0,CE,ce0,CI,ci0,Z);
+			MatrixXd G_dyn = G;
+			VectorXd g0_dyn = g0;
+			MatrixXd CE_dyn = CE;
+			VectorXd ce0_dyn = ce0;
+			MatrixXd CI_dyn = CI;
+			VectorXd ci0_dyn = ci0;
+			VectorXd Z_dyn;
+			solve_quadprog(G_dyn, g0_dyn, CE_dyn, ce0_dyn, CI_dyn, ci0_dyn, Z_dyn);
+			Z = Z_dyn;
 		} else {
 			assert( false && "Unknown solver type" );
 		}
 			// set UV coordinates to be the middle point
 		assert( isfinite(Z(0)) && isfinite(Z(1)) && isfinite(Z(2)) 
 		     && isfinite(Z(3)) && isfinite(Z(4)) && isfinite(Z(5)) && isfinite(Z(6)));
-		new_placement.p = Z.head(3);
-		new_placement.tcs = {Z.segment(3,2), Z.segment(5,2)};
+		new_placement.p = Z.head<3>();
+		new_placement.tcs = {Z.segment<2>(3), Z.segment<2>(5)};
 		new_placement.metrics = {m[0], m[1]};
-		RowVectorXd v = Z;
-		// Multiply by one half because we added two energy terms, shall we?
-		cost = v*G*v.transpose();
+		cost = Z.transpose()*G*Z;
 				
 		return;
 	}
@@ -318,16 +326,16 @@ void cost_and_placement_qslim5d_halfedge (
 	// new metric is the summation of the collapsed vertices' metrics
 	assert( b[0].p[0] == b[1].p[1] && b[0].p[1] == b[1].p[0] );
 	const int tci[2] = {b[0].p[0].tci, b[0].p[1].tci};
-	new_metric = Vmetrics.at(vi[0]).at(tci[0]) + Vmetrics.at(vi[1]).at(tci[1]);
+	new_metric = Vmetrics[vi[0]].at(tci[0]) + Vmetrics[vi[1]].at(tci[1]);
 	assert( new_metric.transpose() == new_metric ); // all the metrics are symmetric
 	
 	// If one vertex is on a seam, it will stay fixed. Use Q as the cost.
 	for(int end=0; end<2; end++) {
 		if(seam_edges.count(vi[end]) && !seam_edges.count(vi[1-end])) {
-			RowVectorXd v(6);
+			RowVector<double, 6> v;
 			v.setOnes();
-			v.head(3) = V.row(vi[end]);
-			v.segment(3,2) = TC.row(tci[end]);
+			v.head<3>() = V.row(vi[end]);
+			v.segment<2>(3) = TC.row(tci[end]);
 			cost = v*new_metric*v.transpose();
 			new_placement.p = V.row(vi[end]);
 			new_placement.tcs = { TC.row(tci[end]) };
@@ -338,36 +346,33 @@ void cost_and_placement_qslim5d_halfedge (
 	
 	/// case 3: no attachment to seam	
 	// solve 
-	VectorXd Z;
-	if( solver == EIQUADPROG ) {
-		const double w = 1e-6;
-		MatrixXd G = new_metric;
-		// regularizer
-		MatrixXd reg(6,6);
-		reg.setIdentity();
-		G = G + w*reg;
-		MatrixXd CE(6,1);
-		CE.setZero();
-		CE(5,0) = 1.0;
-		VectorXd g0(6), ce0(1);
-		g0.setOnes();
-		g0.segment(0,3) = (V.row(vi[0])+V.row(vi[1]))/2;
-		g0.segment(3,2) = (TC.row(tci[0])+TC.row(tci[1]))/2;
-		g0 = -w*g0;
-		ce0 << -1;
-		MatrixXd CI;
-		VectorXd ci0;
-		solve_quadprog(G,g0,CE,ce0,CI,ci0,Z);
-	} else {
-		assert( false && "Unknown solver type" );
-	}
+	Vector<double, 6> Z;
+	const double w = 1e-6;
+	Matrix6d G = new_metric;
+	// regularizer
+	Matrix6d reg;
+	reg.setIdentity();
+	G = G + w*reg;
+	
+	Vector<double, 6> g0;
+	g0.setOnes();
+	g0.segment<3>(0) = (V.row(vi[0])+V.row(vi[1]))/2;
+	g0.segment<2>(3) = (TC.row(tci[0])+TC.row(tci[1]))/2;
+	g0 = -w*g0;
+
+	// Unconstrained minimization: G*Z + g0 = 0 (ignoring homogeneous coord for a moment)
+	// We have the homogeneous coordinate constraint: Z(5) = 1.
+	// We can solve the 5x5 system for the first 5 components.
+	Matrix<double, 5, 5> A_sub = G.block<5, 5>(0, 0);
+	Vector<double, 5> b_sub = g0.head<5>() + G.block<5, 1>(0, 5);
+	
+	Z.head<5>() = A_sub.ldlt().solve(-b_sub);
+	Z(5) = 1.0;
 
 	// set UV coordinates to be the middle point
 	assert( isfinite(Z(0)) && isfinite(Z(1)) && isfinite(Z(2)) && isfinite(Z(3)) && isfinite(Z(4)));
-	new_placement.p = Z.head(3);
-	new_placement.tcs = {Z.segment(3,2)};
+	new_placement.p = Z.head<3>();
+	new_placement.tcs = {Z.segment<2>(3)};
 	new_placement.metrics = {new_metric};
-	RowVectorXd v = Z;
-	cost = v*new_metric*v.transpose();
-
+	cost = Z.transpose()*new_metric*Z;
 }

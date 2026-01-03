@@ -7,7 +7,9 @@
 #include <igl/seam_edges.h>
 #include <igl/writeOBJ.h>
 #include <iostream>
+#ifdef ENABLE_TIMING
 #include <chrono>
+#endif
 #include <igl/hausdorff.h>
 #include <igl/seam_edges.h>
 #include "cost_and_placement.h"
@@ -78,6 +80,9 @@ void prepare_decimate_halfedge_5d(
 	std::vector< placement_info_5d > & C
 	)
 {
+#ifdef ENABLE_TIMING
+	auto start = std::chrono::high_resolution_clock::now();
+#endif
 	using namespace Eigen;
 	using namespace std;
 	using namespace igl;
@@ -100,7 +105,10 @@ void prepare_decimate_halfedge_5d(
 	F = OF;
 	igl::connect_boundary_to_infinity(OV,OF,V,F);
 	const bool has_infinity_vertex = V.row( V.rows()-1 ).minCoeff() == std::numeric_limits<double>::infinity();
-	if( has_infinity_vertex )	target_num_vertices++;
+	if( has_infinity_vertex ) {
+		target_num_vertices++;
+		Vmetrics.resize(V.rows());
+	}
 	TC = OTC;
 	FT = OFT;
 	
@@ -125,7 +133,7 @@ void prepare_decimate_halfedge_5d(
         auto inf = std::numeric_limits<double>::infinity();
         TC.row( OTC.rows() ).setConstant( inf );
         // Add a zero quadric.
-        Vmetrics[OV.rows()][OTC.rows()].setZero( 6,6 );
+        Vmetrics[OV.rows()][OTC.rows()].setZero();
         
         
         // Allocate space for the new faces added by step 5.
@@ -173,16 +181,27 @@ void prepare_decimate_halfedge_5d(
 	Eigen::MatrixXd V_scaled = V * pos_scale;
 	Eigen::MatrixXd TC_scaled = TC * uv_weight;
 	
+	std::vector<double> initial_costs(E.rows());
+	#pragma omp parallel for
 	for ( int e=0; e<E.rows(); e++ )
 	{
 		double cost = -31337;
 		placement_info_5d new_placement;
 		Bundle b = get_half_edge_bundle( e, E, EF, EI, F, FT );
 		cost_and_placement_qslim5d_halfedge(b,V_scaled,F,TC_scaled,FT,seam_edges,Vmetrics,seam_aware_degree,pos_scale,uv_weight,cost,new_placement);
-		C.at(e) = new_placement;
-		Qit[e] = Q.insert(std::pair<double,int>(cost,e)).first;
+		C[e] = new_placement;
+		initial_costs[e] = cost;
+	}
+	for ( int e=0; e<E.rows(); e++ )
+	{
+		Qit[e] = Q.insert(std::pair<double,int>(initial_costs[e],e)).first;
 	}
 	assert( Q.size() == E.rows() );
+#ifdef ENABLE_TIMING
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> diff = end - start;
+	std::cout << "Initial queue filling: " << diff.count() << "s" << std::endl;
+#endif
 }
 
 
@@ -261,6 +280,9 @@ bool decimate_halfedge_5d(
     double& max_error
     )
 {
+#ifdef ENABLE_TIMING
+	auto start_total = std::chrono::high_resolution_clock::now();
+#endif
 	using namespace Eigen;
 	using namespace std;
 	using namespace igl;	
@@ -282,6 +304,9 @@ bool decimate_halfedge_5d(
 	Eigen::MatrixXd V_scaled = V * pos_scale;
 	Eigen::MatrixXd TC_scaled = TC * uv_weight;
 
+#ifdef ENABLE_TIMING
+	auto start_decimation = std::chrono::high_resolution_clock::now();
+#endif
 	int prev_e = -1;
 	bool clean_finish = true;
 	int remain_vertices=V.rows();
@@ -314,9 +339,22 @@ bool decimate_halfedge_5d(
 		remain_vertices--;
 	}
 
+#ifdef ENABLE_TIMING
+	auto end_decimation = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> diff_decimation = end_decimation - start_decimation;
+	std::cout << "Decimation loop: " << diff_decimation.count() << "s" << std::endl;
+#endif
+
 	max_error = current_max_error;
 	// remove all DUV_COLLAPSE_EDGE_NULL faces
 	clean_mesh(V,F,TC,FT,OF.rows(),V_out,F_out,TC_out,FT_out);
+
+#ifdef ENABLE_TIMING
+	auto end_total = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> diff_total = end_total - start_total;
+	std::cout << "Total decimate_halfedge_5d: " << diff_total.count() << "s" << std::endl;
+#endif
+
 	return clean_finish;
 	
 }

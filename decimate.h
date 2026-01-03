@@ -12,7 +12,7 @@
 struct placement_info_5d {
 	Eigen::RowVectorXd p;
 	std::vector<Eigen::RowVectorXd> tcs;
-	std::vector<Eigen::MatrixXd>    metrics;
+	std::vector<Matrix6d>    metrics;
 };
 
 typedef std::set<std::pair<double,int> > PriorityQueue;

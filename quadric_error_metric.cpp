@@ -1,6 +1,12 @@
 #include "quadric_error_metric.h"
 #include <Eigen/Geometry>
 #include <iostream>
+#ifdef ENABLE_TIMING
+#include <chrono>
+#endif
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 namespace {
 	const double eps = 1e-7;
@@ -114,12 +120,25 @@ void half_edge_qslim_5d(
     double uv_weight,
 	MapV5d & hash_Q)
 {
+#ifdef ENABLE_TIMING
+	auto start = std::chrono::high_resolution_clock::now();
+#endif
 	using namespace std;
 	using namespace Eigen;
 	
 	// initialize 5d vertex map, key is (vi,ti), value is zero metric
 	assert( F.rows() == FT.rows() );
 	const int nF = F.rows();
+	hash_Q.clear();
+	hash_Q.resize(V.rows());
+
+#ifdef _OPENMP
+	const int NUM_LOCKS = 4096;
+	std::vector<omp_lock_t> locks(NUM_LOCKS);
+	for(int i=0; i<NUM_LOCKS; i++) omp_init_lock(&locks[i]);
+#endif
+
+	#pragma omp parallel for
 	for(int i=0; i<nF; i++) {
 	
 		/// A. compute metric for each face
@@ -138,17 +157,18 @@ void half_edge_qslim_5d(
 		assert( fabs(e1.norm() - 1) <= eps );
 		assert( fabs(e2.norm() - 1) <= eps );
 		
-		MatrixXd A(5,5);
+		Matrix6d metric;
+		metric.setZero();
+		Matrix<double, 5, 5> A;
 		A.setIdentity();
 		A = A - e1*e1.transpose() - e2*e2.transpose();
-		VectorXd b = p1.dot(e1)*e1 + p1.dot(e2)*e2 - p1;
+		Vector<double, 5> b_vec = p1.dot(e1)*e1 + p1.dot(e2)*e2 - p1;
 		double c = p1.dot(p1) - p1.dot(e1)*p1.dot(e1) - p1.dot(e2)*p1.dot(e2);
 		
 		// Paper Section 3.4
-		MatrixXd metric(6,6);
-		metric.block(0,0,5,5) = A;
-		metric.block(0,5,5,1) = b;
-		metric.block(5,0,1,5) = b.transpose();
+		metric.block<5, 5>(0, 0) = A;
+		metric.block<5, 1>(0, 5) = b_vec;
+		metric.block<1, 5>(5, 0) = b_vec.transpose();
 		metric(5,5) = c;	
 	
 		/// B. assign the face metric to each 5d vertex, if it hasn't appeared, initialize
@@ -156,13 +176,29 @@ void half_edge_qslim_5d(
 		for(int j=0; j<3; j++) {
 			int vi = F(i,j);
 			int ti = FT(i,j);
+#ifdef _OPENMP
+			omp_set_lock(&locks[vi % NUM_LOCKS]);
+#endif
 			if( hash_Q[vi].count(ti) == 0 ) {
 				hash_Q[vi][ti] = metric;
 			} 
 			else {
 				hash_Q[vi][ti] += metric;
 			}
+#ifdef _OPENMP
+			omp_unset_lock(&locks[vi % NUM_LOCKS]);
+#endif
 		}
 	}
+
+#ifdef _OPENMP
+	for(int i=0; i<NUM_LOCKS; i++) omp_destroy_lock(&locks[i]);
+#endif
+
+#ifdef ENABLE_TIMING
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> diff = end - start;
+	std::cout << "Initial metric calculation: " << diff.count() << "s" << std::endl;
+#endif
 	
 }	

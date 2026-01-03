@@ -212,11 +212,21 @@ int main( int argc, char* argv[] ) {
     int seam_aware_degree = int( SeamAwareDegree::Seamless );
     const bool found_strictness = pythonlike::get_optional_parameter( args, "--strict", strictness );	
 	if ( found_strictness ) {
-		seam_aware_degree = atoi(strictness.c_str());
+		bool success = false;
+		seam_aware_degree = pythonlike::strto<int>(strictness, success);
+		if (!success || seam_aware_degree < 0 || seam_aware_degree > 2) {
+			std::cerr << "ERROR: Invalid value for --strict: " << strictness << ". Must be 0, 1, or 2." << std::endl;
+			usage(argv[0]);
+		}
 	}
 	std::string uv_weight_str = "1.0";
-	pythonlike::get_optional_parameter(args, "--uv-weight", uv_weight_str);
-	const double uv_weight = pythonlike::strto<double>(uv_weight_str);
+	const bool found_uv_weight = pythonlike::get_optional_parameter(args, "--uv-weight", uv_weight_str);
+	bool uv_success = false;
+	const double uv_weight = pythonlike::strto<double>(uv_weight_str, uv_success);
+	if (!uv_success || uv_weight < 0.0) {
+		std::cerr << "ERROR: Invalid value for --uv-weight: " << uv_weight_str << ". Must be a non-negative number." << std::endl;
+		usage(argv[0]);
+	}
     bool preserve_boundaries = false;
     for (auto it = args.begin(); it != args.end(); ) {
         if (*it == "--preserve-boundaries") {
@@ -224,6 +234,14 @@ int main( int argc, char* argv[] ) {
             it = args.erase(it);
         } else {
             ++it;
+        }
+    }
+    
+    // Check for any unknown options starting with --
+    for (const auto& arg : args) {
+        if (arg.size() > 2 && arg.substr(0, 2) == "--") {
+            std::cerr << "ERROR: Unknown option: " << arg << std::endl;
+            usage(argv[0]);
         }
     }
     
@@ -244,16 +262,14 @@ int main( int argc, char* argv[] ) {
     
     // Get the target number of vertices.
     int target_num_vertices = 0;
+    bool target_success = false;
     if( command == "num-vertices" ) {
-        // strto<> returns 0 upon failure, which is fine, since that is invalid input for us.
-        target_num_vertices = pythonlike::strto< int >( command_parameter );
+        target_num_vertices = pythonlike::strto< int >( command_parameter, target_success );
     }
     else if( command == "percent-vertices" ) {
-        const double percent = pythonlike::strto< double >( command_parameter );
+        const double percent = pythonlike::strto< double >( command_parameter, target_success );
         target_num_vertices = lround( ( percent * V.rows() )/100. );
         std::cout << command_parameter << "% of " << std::to_string( V.rows() ) << " input vertices is " << std::to_string( target_num_vertices ) << " output vertices." << std::endl;
-        // Ugh, printf() requires me to specify the types of integers versus longs.
-        // printf( "%.2f%% of %d input vertices is %d output vertices.", percent, V.rows(), target_num_vertices );
     }
     else {
         std::cerr << "ERROR: Unknown command: " << command << std::endl;
@@ -261,8 +277,8 @@ int main( int argc, char* argv[] ) {
     }
     
     // Check that the target number of vertices is positive and fewer than the input number of vertices.
-    if( target_num_vertices <= 0 ) {
-        std::cerr << "ERROR: Target number of vertices must be a positive integer: " << argv[4] << std::endl;
+    if( !target_success || target_num_vertices <= 0 ) {
+        std::cerr << "ERROR: Target number of vertices must be a positive integer: " << command_parameter << std::endl;
         usage( argv[0] );
     }
     if( target_num_vertices >= V.rows() ) {
@@ -294,6 +310,8 @@ int main( int argc, char* argv[] ) {
     if( !success ) {
         std::cerr << "WARNING: decimate_down_to() returned false (target number of vertices may have been unachievable)." << std::endl;
     }
+    
+    std::cout << "Final geometric error: " << std::fixed << std::setprecision(6) << final_error << std::endl;
     
     if ( !custom_output_path )
     {

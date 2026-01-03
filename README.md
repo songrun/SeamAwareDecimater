@@ -19,10 +19,24 @@ This project uses C++ 11, and it depends on:
 - [eigen](http://eigen.tuxfamily.org/) (e.g. `brew install eigen`)
 
 ### Compile this project
-    mkdir build
-    cd build
-    cmake -DCMAKE_BUILD_TYPE=Release ..
-    make
+You can use the provided build script:
+```bash
+./build.sh
+```
+
+Or compile manually:
+```bash
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make
+```
+
+To enable performance timing, use the `ENABLE_TIMING` CMake option:
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_TIMING=ON ..
+make
+```
     
 ### Run this project
 	./decimater ../models/animal.obj percent-vertices 50

@@ -183,7 +183,7 @@ bool try_collapse_5d_Edge(
 		Vmetrics[d].erase(he0_td);
 		Vmetrics[d].erase(he1_td);
 		Vmetrics[s].insert(Vmetrics[d].begin(), Vmetrics[d].end());
-		Vmetrics.erase(d);
+		Vmetrics[d].clear();
 		Vmetrics[s][he0_ts] = new_placement.metrics[0];
 		Vmetrics[s][he1_ts] = new_placement.metrics[1];
 	}
@@ -206,7 +206,7 @@ bool try_collapse_5d_Edge(
 		assert(bundle[0].p[1] == bundle[1].p[0] || bundle[0].p[1] == bundle[1].p[1]);
 		Vmetrics[d].erase(d_tc);
 		Vmetrics[s].insert(Vmetrics[d].begin(), Vmetrics[d].end());
-		Vmetrics.erase(d);
+		Vmetrics[d].clear();
 		Vmetrics[s][s_tc] = new_placement.metrics[0];
 	}
 
